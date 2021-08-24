@@ -1,4 +1,3 @@
-from numpy import column_stack
 import pandas as pd
 
 class backtest():
@@ -7,7 +6,7 @@ class backtest():
         self.backdata = 100
         self.maxOrderLifetime = 1
         self.uninvestedBalance = 100
-        self.orders = pd.DataFrame(columns = ["Status", "Type", "Price", "SL", "TP"])
+        self.orders = pd.DataFrame(columns = ["Status", "Type", "Price", "SL", "TP", "Lifetime"])
         self.positions = pd.DataFrame(columns=["Open", "Type", "OpenValue", "CloseValue", "Profit", "SL", "TP"])
         self.iteration = 0
 
@@ -22,17 +21,17 @@ class backtest():
         return
 
     def fillOrders(self):
-        for order in self.orders:
-            if self.uninvestedBalance < order["Price"]:
-
+        for orderIndex in range(len(self.orders)):
+            if self.uninvestedBalance < orders["Price"][orderIndex]:
+                self.orders["Lifetime"][orderIndex] += 1
             self.positions.append({
                 "Open": True,
-                "Type": order["Type"],
-                "OpenValue": order["Price"],
+                "Type": self.orders["Type"][orderIndex],
+                "OpenValue": self.orders["Price"][orderIndex],
                 "CloseValue": 0,
                 "Profit": 0,
-                "SL": order["SL"],
-                "TP": order["TP"]
+                "SL": self.orders["SL"][orderIndex],
+                "TP": self.orders["TP"][orderIndex]
             })
             self.uninvestedBalance -= self.ohlcv[-1]["Open"]
         return
