@@ -30,21 +30,17 @@ class option():
         self.sl = 0
 
     def update(self, cache):
-        if not self.active and self.status == 1:
+        if self.active is False and self.status == 1:
             return 0
 
-        try:
-            self.currentPrice = cache[0]
-            self.currentTime = cache[1]
+        self.currentPrice = cache[0]
+        self.currentTime = cache[1]
 
-            # self.currentPrice = ohlcv["Open"].iloc[self.openTime+self.lifetime]
-            # self.currentTime = ohlcv["index"].iloc[self.openTime+self.lifetime]
+        # self.currentPrice = ohlcv["Open"].iloc[self.openTime+self.lifetime]
+        # self.currentTime = ohlcv["index"].iloc[self.openTime+self.lifetime]
 
-            # self.currentPrice = ohlcv["Open"].tail(1).item()
-            # self.currentTime = ohlcv["index"].tail(1).item()
-            pass
-        except:
-            pass
+        # self.currentPrice = ohlcv["Open"].tail(1).item()
+        # self.currentTime = ohlcv["index"].tail(1).item()
 
         if self.active:
             if self.status == 0:
@@ -65,10 +61,11 @@ class option():
 
         self.currentValue = self.originalValue*(self.change+1)
 
-        if self.profitP >= self.tp:
-            self.close()
-        if self.profitP <= self.sl:
-            self.close()
+        if self.status != 1:
+            if self.profitP >= self.tp:
+                self.close()
+            if self.profitP <= self.sl:
+                self.close()
 
         self.lifetime += 1
         return 1
@@ -103,6 +100,9 @@ class backtest():
         self.openCache = -1
         self.timeCache = -1
 
+        self.logs = {"balance":{},
+                     "investmentValue": {}}
+
         self.options = {
             "Open": {},
             "Closed": {}
@@ -133,11 +133,16 @@ class backtest():
 
     def updateOrders(self):
         self.investmentValue = 0
+        closedOptions = []
         for optionUUID in self.options["Open"]:
             returnCode = self.options["Open"][optionUUID].update((self.openCache, self.timeCache))
-            self.investmentValue += self.options["Open"][optionUUID].currentValue
             if returnCode == 0:
-                self.options["Closed"][optionUUID](self.options["Open"].pop(optionUUID))
+                closedOptions.append(optionUUID)
+            else:
+                self.investmentValue += self.options["Open"][optionUUID].currentValue
+        for optionUUID in closedOptions:
+            self.balance += self.options["Open"][optionUUID].currentValue
+            self.options["Closed"][optionUUID] = self.options["Open"].pop(optionUUID)
         return
 
     def next(self):
@@ -154,8 +159,15 @@ class backtest():
         self.cache()
         self.updateOrders()
 
+        self.log()
+
         self.iteration += 1
         return True
+
+    def log(self):
+        self.logs["balance"][self.iteration] = self.balance
+        self.logs["investmentValue"][self.iteration] = self.investmentValue
+        return
 
     def stop(self):
         self.closeOrders()
@@ -164,14 +176,12 @@ class backtest():
 
     def closeOrders(self):
         for optionUUID in self.options["Open"]:
-            returnCode = self.options["Open"][optionUUID].close()
-            if returnCode == 0:
-                self.options["Closed"][optionUUID](self.options["Open"].pop(optionUUID))
+            self.options["Open"][optionUUID].close()
 
-
-    def open(self, direction, value, tp = 999, sl = 999):
+    def open(self, direction, value, tp = 999, sl = -999):
         op = option()
         op.open(direction, value, tp = tp, sl = sl)
+        self.balance -= value
         self.options["Open"][op.uuid] = op
         return op.uuid # pyright: reportGeneralTypeIssues=false
 
